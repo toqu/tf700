@@ -24,7 +24,12 @@ loop_list=$(find "${indevice_rootfs_dir}" -mindepth 1 -maxdepth 1 \( -type f -na
 
 multiClear
 
-cat <<EOF
+if [ "1" -eq "$(echo ${loop_list} | wc -l )" ]
+then
+    input=1
+else
+
+    cat <<EOF
 
 Please, select image to boot:
 ==========================
@@ -32,13 +37,14 @@ $(echo "${loop_list}" | sed "s|${indevice_rootfs_dir}/||g" | awk '{print NR, "-"
 ==========================
 EOF
 
-[ $wait -gt 0 ] && echo "You have $wait Seconds to choose..."
-echo -n "Please Select (1..9) [1]: "
-read -n1 -t $wait input
-echo
-wait=0
+    [ $wait -gt 0 ] && echo "You have $wait Seconds to choose..."
+    echo -n "Please Select (1..9) [1]: "
+    read -n1 -t $wait input
+    echo
+    wait=0
 
-[ "${input}" -gt "0" ] 2>/dev/null || input=1
+    [ "${input}" -gt "0" ] 2>/dev/null || input=1
+fi
 
 selected_rootfs=$(echo "${loop_list}" | sed -n "${input}p")
 

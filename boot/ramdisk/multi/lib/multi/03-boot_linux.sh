@@ -70,10 +70,10 @@ export BOOT
 # Copy kernel modules & firmware to rootfs
 kenrel_modules=`find /lib/modules -type d -mindepth 1 -maxdepth 1`
 [ -d "${rootmnt}${kenrel_modules}" ] || mkdir -p "${rootmnt}${kenrel_modules}"
-rm -rf "${rootmnt}${kenrel_modules}"
+#rm -rf "${rootmnt}${kenrel_modules}" # Don't delete old files
 cp -af "${kenrel_modules}" "${rootmnt}${kenrel_modules}"
 [ -d "${rootmnt}/lib/vendor" ] || mkdir -p "${rootmnt}/lib/vendor"
-rm -rf "${rootmnt}/lib/vendor/firmware"
+#rm -rf "${rootmnt}/lib/vendor/firmware" # Don't delete old files
 cp -af "/lib/vendor/firmware" "${rootmnt}/lib/vendor/firmware"
 
 # Preserve information on old systems without /run on the rootfs

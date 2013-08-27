@@ -6,7 +6,7 @@
 # Main screen
 #
 
-wait=10
+wait=3
 
 while true; do
 
@@ -56,9 +56,6 @@ case "$inp" in
     exit 1
     ;;
   s)
-    echo
-    echo "Welcome to HELL..."
-    echo
     /bin/sh -i </dev/console >/dev/console 2>&1
     ;;
   *)
