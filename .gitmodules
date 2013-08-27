@@ -4,3 +4,6 @@
 [submodule "source/busybox/src"]
 	path = source/busybox/src
 	url = git://git.busybox.net/busybox
+[submodule "source/kernel/linux-3.1.10_hb_mored"]
+	path = source/kernel/linux-3.1.10_hb_mored
+	url = https://github.com/moreD/tf700t-linux.git
