@@ -13,10 +13,10 @@
 
 # Initializing Rom Information
 ini_set("rom_name",    "TF700 Dualboot Installer");
-ini_set("rom_version", "v0.8.4");
+ini_set("rom_version", "v0.8.3");
 ini_set("rom_author",  "Rabit");
 ini_set("rom_device",  "Asus Transformer TF700/T");
-ini_set("rom_date",    "09/05/2013");
+ini_set("rom_date",    "27/08/2013");
 
 setvar("terms_agreed", "0");
 
@@ -41,24 +41,9 @@ fontresload( "1", "ttf/Roboto-Regular.ttf", "16" ); #-- "1" = Big Font
 ###################################################################################################################
 # Set language
 #
-selectbox(
-    "Select Language...",
-    "Please select installer language:",
-    "@default",
-    "lang.prop",
-  
-    "English", "Welcome to Installer",          1, #-- "selected.0" == "1"
-    "Русский", "Добро пожаловать в установщик", 0  #-- "selected.0" == "2"
-);
-
 # SET LANGUAGE & FONT FAMILY
-if prop("lang.prop","selected.0")=="1" then
-  loadlang("langs/en.lang");
-endif;
+loadlang("langs/en.lang");
 
-if prop("lang.prop","selected.0")=="2" then
-  loadlang("langs/ru.lang");
-endif;
 
 ###################################################################################################################
 # Print welcome screen
