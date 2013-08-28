@@ -11,10 +11,9 @@ LINARO_TOOLCHAIN_ARCHIVE=${ROOT_DIR}/gcc-linaro-arm-linux-gnueabihf-4.7-2013.04-
 LINARO_TOOLCHAIN_ARCHIVE_MD5=${ROOT_DIR}/gcc-linaro-arm-linux-gnueabihf-4.7-2013.04-20130415_linux.tar.bz2.md5
 
 #export KERNEL_VARIANT=linux-3.11-rc6 KERNEL_DEFCONFIG=tegra_defconfig
-#export KERNEL_VARIANT=linux_3.1_hb KERNEL_DEFCONFIG=tegra3_hb_defconfig
+#export KERNEL_VARIANT=linux-3.1.10_hb KERNEL_DEFCONFIG=tegra3_hb_defconfig
 #export KERNEL_VARIANT=linux_3.1.10_cm KERNEL_DEFCONFIG=tegra3_hb_defconfig
 #export KERNEL_VARIANT=linux_3.1_hb_oc KERNEL_DEFCONFIG=tf700t_defconfig
-
 export KERNEL_VARIANT=linux-3.1.10_hb_mored KERNEL_DEFCONFIG=tf700t_defconfig
 
 export KERNEL_BASE_DIR=${ROOT_DIR}/source/kernel
@@ -29,10 +28,23 @@ REBUILD=0
 MENUCONFIG=0
 OLDCONFIG=0
 
+
+NEEDED_PROGRAMS="md5sum git tar abootimg make sed find dd date ln bunzip2 xz wget"
+
+# Check, if dependencies are met
+for program in ${NEEDED_PROGRAMS}
+do
+    if [ -z "$(which ${program})" ]
+    then
+	echo "Program \"$program\" not installed! Aborting..."
+	exit 1
+    fi
+done
+
 # check, if toolchain is in place
 if [ -e ${CROSS_COMPILE}gcc  ]
 then
-    echo "$0: Toolchain OK"
+    echo "$0: GCC toolchain found"
 else
     echo "$0: Acquire toolchain..."
     cd ${ROOT_DIR}
@@ -63,7 +75,7 @@ else
     fi
     
     echo "$0: Extract archive..."
-    tar xvf ${LINARO_TOOLCHAIN_ARCHIVE} --strip-components=1 -C tools/toolchain
+    tar xjvf ${LINARO_TOOLCHAIN_ARCHIVE} --strip-components=1 -C tools/toolchain
     
     # Paranoia check 
     if [ ! -e ${CROSS_COMPILE}gcc  ]
@@ -75,8 +87,10 @@ fi
 
 
 # Prepare blobutils
-if [ ! -e tools/blobtools/blobpack ]
+if [ -e tools/blobtools/blobpack ]
 then
+    echo "$0: blobpack found"
+else
     git submodule update --init tools/blobtools
     if [ "0" -ne "$?" ]
     then
@@ -94,8 +108,10 @@ then
 fi
 
 # Prepare busybox
-if [ ! -e source/busybox/out/busybox ]
+if [ -e source/busybox/out/busybox ]
 then
+    echo "$0: busybox found"
+else
     git submodule update --init source/busybox/src
     
     if [ "0" -ne "$?" ]
@@ -116,6 +132,14 @@ then
 	exit 1
     fi
     
+fi
+
+echo "$0: Accquire Kernel sources"
+git submodule update --init ${KERNEL_SRC}
+if [ "0" -ne "$?" ]
+then
+    echo "Failed!"
+    exit 1
 fi
 
 if [ "1" -eq "$#" ]
@@ -140,10 +164,14 @@ fi
 
 # Build kernel
 cd ${KERNEL_SRC}
-mkdir ${KERNEL_OUT}
+if [ ! -d ${KERNEL_OUT} ]
+then
+    mkdir ${KERNEL_OUT}
+fi
 
 if [ "1" -eq "${REBUILD}" ]
 then
+    echo "$0: Call defconfig"
     make -j4 O=${KERNEL_OUT} ${KERNEL_DEFCONFIG}
     if [ "0" -ne "$?" ]
     then
@@ -154,6 +182,7 @@ fi
 
 if [ "1" -eq "${OLDCONFIG}" ]
 then
+    echo "$0: Call oldconfig"
     make -j4 O=${KERNEL_OUT} oldconfig
     if [ "0" -ne "$?" ]
     then
@@ -167,6 +196,7 @@ fi
 
 if [ "1" -eq "${MENUCONFIG}" ]
 then
+    echo "$0: Call menuconfig"
     make -j4 O=${KERNEL_OUT} menuconfig
     if [ "0" -ne "$?" ]
     then
@@ -179,9 +209,11 @@ then
 fi
 
 # Clean sourcecode (this does not affect the data in KERNEL_OUT)
+echo "$0: make mrproper on sources"
 make mrproper
 
 # Build zImage
+echo "$0: make zImage"
 make -j4 O=${KERNEL_OUT} zImage
 if [ "0" -ne "$?" ]
 then
@@ -189,7 +221,7 @@ then
     beep -l 30 -r 10
     exit 1
 fi
-
+echo "$0: make modules"
 make -j4 modules O=${KERNEL_OUT} DESTDIR=${MODULES_OUT}
 if [ "0" -ne "$?" ]
 then
@@ -197,7 +229,7 @@ then
     beep -l 30 -r 10
     exit 1
 fi
-
+echo "$0: make modules_install"
 make -j4 modules_install O=${KERNEL_OUT} INSTALL_MOD_PATH=${MODULES_OUT}
 if [ "0" -ne "$?" ]
 then
@@ -209,6 +241,7 @@ fi
 cd ${ROOT_DIR}
 
 # Prepare RAMDISK
+echo "$0: Prepare ramdisk"
 rm -rf boot/${KERNEL_VARIANT}_img/
 mkdir boot/${KERNEL_VARIANT}_img 
 
@@ -227,7 +260,9 @@ then
     exit 1
 fi
 
-tools/blobtools/blobpack boot/${KERNEL_VARIANT}_img/boot.blob.tosign LNX boot/${KERNEL_VARIANT}_img/boot.img
+# Build boot image
+echo "$0: Build bootimage"
+./tools/blobtools/blobpack boot/${KERNEL_VARIANT}_img/boot.blob.tosign LNX boot/${KERNEL_VARIANT}_img/boot.img
 if [ "0" -ne "$?" ]
 then
     echo "$0: blobpack failed"
@@ -236,7 +271,20 @@ then
 fi
 
 echo -ne "-SIGNED-BY-SIGNBLOB-\0\0\0\0\0\0\0\0" | cat - boot/${KERNEL_VARIANT}_img/boot.blob.tosign > boot/${KERNEL_VARIANT}_img/boot.blob
-beep -l 30 -r 10
 
-echo "Done!"
-echo "fastboot flash boot boot/${KERNEL_VARIANT}_img/boot.blob && fastboot reboot"
+
+echo "Successfully built bootimage"
+echo "Flash via fastboot with the following command:"
+echo -e "\tfastboot flash boot boot/${KERNEL_VARIANT}_img/boot.blob && fastboot reboot"
+
+INSTALLER_NAME=installer_tf700t_$(date +%Y%m%d_%H%M).zip
+./tools/prepare_installer.sh ${INSTALLER_NAME} ${KERNEL_OUT}/arch/arm/boot/zImage
+if [ "0" -ne "$?" ]
+then
+    echo "Creation of installer failed!"
+    beep -l 30 -r 10
+    exit 1
+fi
+
+echo "Successfully created installer: ${INSTALLER_NAME}"
+exit 0
